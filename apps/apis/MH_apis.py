@@ -48,7 +48,7 @@ class MHSecureCommunicateWithCEApi(Resource):
             r1 = str(random.randint(1, 1000))
             # obtain the time stamp t2
             t2 = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M:%S")
-            # get the DMi
+            # get the DMi from the POST request sending by CE
             DMi = args.get('DMi')
 
             temp = r1 + t2 + str(DMi)
