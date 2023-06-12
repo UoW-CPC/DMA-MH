@@ -1,9 +1,9 @@
 import binascii
 import random
-from datetime import datetime
+import time
 
 from flask import Blueprint
-from flask_restful import Api, Resource, reqparse
+from flask_restful import Api, Resource, reqparse, abort
 
 from apps.utils.crypto import H2_hash_function, SymmetricEncryption
 
@@ -17,8 +17,9 @@ MH_parser.add_argument('Flag',
                        help='Must provide the Flag (Flag=0: MH generates c2;'
                             'Flag=1, MH receives (r1, t2) from CE)',
                        location=['args', 'form'])
-MH_parser.add_argument('DMi',
-                       type=int,
+MH_parser.add_argument('Deployment_id_from_CE',
+                       type=str,
+                       required=True,
                        location=['args', 'form'])
 MH_parser.add_argument('r1_from_CE',
                        type=str,
@@ -32,9 +33,18 @@ class MHSecureCommunicateWithCEApi(Resource):
         pass
 
     def post(self):
+        # obtain the Deployment_id from EMGWAM
+        Deployment_id = "100"
+
+        # obtain the Flag and Deployment_id via the POST request sending from CE
         args = MH_parser.parse_args()
         flag = args.get('Flag')
+        Deployment_id_from_CE = args.get('Deployment_id_from_CE')
         global r1, t2
+
+        # Discard the CE POST request if the Deployment_ids between CE and MH are different
+        if Deployment_id != Deployment_id_from_CE:
+            abort(400, msg="The Deployment_ids between MH and CE are mismatched!")
 
         # 5.  MH receives a POST request (that is 'CE starts the conversation with MH.') from CE.
         # MH executes the following computations and then will return c2 as a response to CE.
@@ -47,15 +57,12 @@ class MHSecureCommunicateWithCEApi(Resource):
             # generate a random number r1
             r1 = str(random.randint(1, 1000))
             # obtain the time stamp t2
-            t2 = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M:%S")
-            # get the DMi from the POST request sending by CE
-            DMi = args.get('DMi')
-
-            temp = r1 + t2 + str(DMi)
+            t2 = str(time.time_ns())
+            temp = r1 + t2
             # call H2 function
             H2 = H2_hash_function(temp)
             # generate a message m2
-            m2 = str(r1) + ' ' + t2 + ' ' + str(DMi) + ' ' + H2
+            m2 = r1 + ' ' + t2 + ' ' + H2
             # obtain c2
             encryptor = SymmetricEncryption(passwordSalt_value, iv_value)
             c2 = encryptor.encryption(m2, nonce)
